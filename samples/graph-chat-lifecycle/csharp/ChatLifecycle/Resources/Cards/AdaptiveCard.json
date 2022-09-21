@@ -18,35 +18,6 @@
             {
               "type": "TextBlock",
               "weight": "Bolder",
-              "text": "Title: ",
-              "wrap": true
-            }
-          ],
-          "width": "auto"
-        },
-        {
-          "type": "Column",
-          "items": [
-            {
-              "type": "Input.Text",
-              "placeholder": "Please enter the title of GroupChat",
-              "wrap": true,
-              "id": "title"
-            }
-          ],
-          "width": "stretch"
-        }
-      ]
-    },    
-    {
-      "type": "ColumnSet",
-      "columns": [
-        {
-          "type": "Column",
-          "items": [
-            {
-              "type": "TextBlock",
-              "weight": "Bolder",
               "text": "Select Members: ",
               "wrap": true
             }
@@ -60,32 +31,32 @@
               "type": "Input.ChoiceSet",
               "id": "users",
               "style": "compact",
-              "isMultiSelect": true,
+              "isMultiSelect": false,
               "value": "",
               "choices": [
                 {
-                  "title": "",
-                  "value": ""
+                  "title": "${user1Title}",
+                  "value": "${user1Value}"
                 },
                 {
-                  "title": "",
-                  "value": ""
+                  "title": "${user2Title}",
+                  "value": "${user2Value}"
                 },
                 {
-                  "title": "",
-                  "value": ""
+                  "title": "${user3Title}",
+                  "value": "${user3Value}"
                 },
                 {
-                  "title": "",
-                  "value": ""
+                  "title": "${user4Title}",
+                  "value": "${user4Value}"
                 },
                 {
-                  "title": "",
-                  "value": ""
+                  "title": "${user5Title}",
+                  "value": "${user5Value}"
                 },
                 {
-                  "title": "",
-                  "value": ""
+                  "title": "${user6Title}",
+                  "value": "${user6Value}"
                 }
               ]
             }

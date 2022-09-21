@@ -7,6 +7,7 @@ namespace ChatLifecycle.Controllers
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Net.Http;
     using System.Threading.Tasks;
     using AdaptiveCards.Templating;
@@ -17,6 +18,7 @@ namespace ChatLifecycle.Controllers
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Graph;
+    using Newtonsoft.Json;
 
     public class HomeController : Controller
     {
@@ -61,8 +63,7 @@ namespace ChatLifecycle.Controllers
             try
             {
                  var accessToken = await SSOAuthHelper.GetAccessTokenOnBehalfUserAsync(_configuration, _httpClientFactory, _httpContextAccessor);
-               
-                 return accessToken;
+                return accessToken;
             }
             catch (Exception e)
             {
@@ -79,7 +80,8 @@ namespace ChatLifecycle.Controllers
             .Request()
             .GetAsync().Result;
 
-            string adaptiveCardJson = "{ \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\", \"type\": \"AdaptiveCard\", \"version\": \"1.0\", \"body\": [{ \"type\": \"ColumnSet\", \"columns\": [{ \"type\": \"Column\", \"items\": [{ \"type\": \"TextBlock\", \"weight\": \"Bolder\", \"text\": \"Group Chat Title: \", \"wrap\": true }], \"width\": \"auto\" }, { \"type\": \"Column\", \"items\": [{ \"type\": \"Input.Text\", \"placeholder\": \"Please enter the title of GroupChat\", \"wrap\": true, \"id\": \"title\" }], \"width\": \"stretch\" }] }, { \"type\": \"ColumnSet\", \"columns\": [{ \"type\": \"Column\", \"items\": [{ \"type\": \"TextBlock\", \"weight\": \"Bolder\", \"text\": \"Select Members: \", \"wrap\": true }], \"width\": \"auto\" }, { \"type\": \"Column\", \"items\": [{ \"type\": \"Input.ChoiceSet\", \"id\": \"users\", \"style\": \"compact\", \"isMultiSelect\": true, \"value\": \"\", \"choices\": [{ \"title\":  \"${user1Title}\", \"value\":  \"${user1Value}\" }, { \"title\": \"${user2Title}\", \"value\": \"${user2Value}\" }, { \"title\": \"${user3Title}\", \"value\": \"${user3Value}\" }, { \"title\": \"${user4Title}\", \"value\": \"${user4Value}\" }, { \"title\": \"${user5Title}\", \"value\": \"${user5Value}\" }, { \"title\": \"${user6Title}\", \"value\": \"${user6Value}\" }] }] }] }, { \"type\": \"ColumnSet\", \"columns\": [{ \"type\": \"Column\", \"items\": [{ \"type\": \"TextBlock\", \"weight\": \"Bolder\", \"text\": \"\", \"wrap\": true, \"height\": \"stretch\" }], \"width\": \"stretch\" }] },{ \"type\": \"ColumnSet\", \"columns\": [{ \"type\": \"Column\", \"items\": [{ \"type\": \"TextBlock\", \"weight\": \"Bolder\", \"text\": \"\", \"wrap\": true, \"height\": \"stretch\" }], \"width\": \"stretch\" }] },{ \"type\": \"ColumnSet\", \"columns\": [ { \"type\": \"Column\", \"items\": [ { \"type\": \"TextBlock\", \"text\": \"**Note**: Selected Members will be added into a group chat and based on the count selected, members will be added to the chat using different scenarios: with all chat history, no chat history, chat history with no. of days accordingly.\", \"height\": \"stretch\", \"wrap\": true } ], \"width\": \"stretch\" } ] } ], \"actions\": [{ \"type\": \"Action.Submit\", \"title\": \"Submit\", \"card\": { \"version\": 1.0, \"type\": \"AdaptiveCard\", \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\" } }] }";
+            string adaptiveCardJson = System.IO.File.ReadAllText("Resources/Cards/AdaptiveCard.json");
+
 
             // Create a Template instance from the template payload
             AdaptiveCardTemplate template = new AdaptiveCardTemplate(adaptiveCardJson);
@@ -124,6 +126,22 @@ namespace ChatLifecycle.Controllers
             return true;
         }
 
+        [Route("GetChats")]
+        public async Task<string> GetChats(string token, string otherUserId, string userID, string title)
+        {
+            var graphClient = GraphClient.GetGraphClient(token);
+            IGraphServiceChatsCollectionPage chatsTask =  await graphClient.Chats.Request().Expand("members").GetAsync();
+
+            List<string> chats = new List<string>();
+            foreach(var chat in chatsTask.CurrentPage)
+            {
+                var found = chat.Members.CurrentPage.Select(member => (AadUserConversationMember) member).Any(member => member.UserId == otherUserId);
+                if (found) chats.Add(chat.Topic);
+            }    
+
+            return string.Join(',', chats);
+        }
+
         public async void CreateGroupChat(GraphServiceClient graphClient, string[] members, string userID, string title)
         {
             var chat = new Chat
@@ -163,7 +181,7 @@ namespace ChatLifecycle.Controllers
 
             if (members.Length == 2)
             {
-                AddMemberWithoutHistory(graphClient, response, members);
+                AddMemberWithHistory(graphClient, response, members);
                 DeleteMember(graphClient,response);
             }
 
@@ -219,7 +237,7 @@ namespace ChatLifecycle.Controllers
                 .AddAsync(teamsTab);
         }
 
-    
+
         public async void AddMemberWithHistory(GraphServiceClient graphClient, Chat response, string[] members)
         {
             var conversationMember = new AadUserConversationMember
